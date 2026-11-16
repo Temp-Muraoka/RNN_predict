@@ -57,7 +57,7 @@ OUTPUT_WINDOW = 10  # 未来何日分を直接予測するか（最後の10個�
 HIDDEN_SIZE = 6    # 隠れ層の次元数
 NUM_LAYERS = 1      # RNNレイヤー数
 BATCH_SIZE = 32
-EPOCHS = 40
+EPOCHS = 20
 LEARNING_RATE = 0.001
 
 # --- 3. 最新10個を予測対象（未来データ）として完全に切り離す ---
@@ -152,24 +152,54 @@ model = DirectRNNPredictor(
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
+train_loss_history = []
+test_loss_history = []
+
 for epoch in range(EPOCHS):
+    # 訓練フェーズ
     model.train()
-    total_loss = 0.0
+    train_loss = 0.0
     for batch_X, batch_y in train_loader:
         batch_X, batch_y = batch_X.to(device), batch_y.to(device)
         
         optimizer.zero_grad()
-        preds = model(batch_X)
+        preds = model(batch_X).squeeze(-1)
         loss = criterion(preds, batch_y)
         loss.backward()
         optimizer.step()
         
-        total_loss += loss.item() * batch_X.size(0)
-        
-    epoch_loss = total_loss / len(train_loader.dataset)
-    print(f"エポック [{epoch+1}/{EPOCHS}] | 訓練損失 (MSE): {epoch_loss:.5f}")
+        train_loss += loss.item() * batch_X.size(0)
+    train_loss = train_loss / len(train_loader.dataset)
+    train_loss_history.append(train_loss)
+
+    # テスト（評価）フェーズ
+    model.eval()
+    test_loss = 0.0
+    with torch.no_grad():
+        for batch_X, batch_y in test_loader:
+            batch_X, batch_y = batch_X.to(device), batch_y.to(device)
+            preds = model(batch_X).squeeze(-1)
+            loss = criterion(preds, batch_y)
+            test_loss += loss.item() * batch_X.size(0)
+    test_loss = test_loss / len(test_loader.dataset)
+    test_loss_history.append(test_loss)
+
+    print(f"エポック [{epoch+1}/{EPOCHS}] | 訓練Loss: {train_loss:.5f} | テストLoss: {test_loss:.5f}")
 
 print("学習が完了しました！\n")
+
+# --- 学習曲線 ---
+plt.figure(figsize=(6, 4))
+
+# 1. 学習曲線のプロット
+plt.plot(range(1, EPOCHS + 1), train_loss_history, label='Train Loss (MSE)', color='blue')
+plt.plot(range(1, EPOCHS + 1), test_loss_history, label='Test Loss (MSE)', color='orange', linestyle='--')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Learning Curves (Train vs Test Loss)')
+plt.legend()
+plt.grid(True)
+plt.show()
 
 # --- 7. 学習完了後：最後の10個の予測と実際のデータの比較 ---
 model.eval()
