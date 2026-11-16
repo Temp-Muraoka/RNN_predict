@@ -1,0 +1,13 @@
+# 秘密情報（APIキーやパスワード）
+.env
+
+# Pythonの自動生成キャッシュ
+__pycache__/
+*.py[cod]
+
+# 仮想環境（もしvenvも併用する場合）
+.venv/
+venv/
+
+# テストコード
+sandbox/
