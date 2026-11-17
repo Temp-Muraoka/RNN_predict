@@ -61,8 +61,8 @@ EPOCHS = 20
 LEARNING_RATE = 0.001
 
 # --- 3. 最新10個を予測対象（未来データ）として完全に切り離す ---
-future_df = df.tail(10).copy()      # 最後の10日分（学習には絶対に使わない）
-train_full_df = df.iloc[:-10].copy()  # 残りのデータで学習・テストを行う
+future_df = df.tail(OUTPUT_WINDOW).copy()      # 最後の10日分（学習には絶対に使わない）
+train_full_df = df.iloc[:-OUTPUT_WINDOW].copy()  # 残りのデータで学習・テストを行う
 
 # --- 4. 前処理とスケーリング ---
 # 説明変数（特徴量）として「気温」「湿度」「気圧」の3つを指定

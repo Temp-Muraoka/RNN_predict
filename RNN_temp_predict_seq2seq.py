@@ -62,6 +62,11 @@ LEARNING_RATE = 0.001
 
 
 # --- 前処理とスケーリング ---
+# --- 3. 最新10個を予測対象（未来データ）として完全に切り離す ---
+future_df = df.tail(OUTPUT_WINDOW).copy()      # 最後の10日分（学習には絶対に使わない）
+df = df.iloc[:-OUTPUT_WINDOW].copy()  # 残りのデータで学習・テストを行う
+
+
 # 説明変数（特徴量）として「気温」「湿度」「気圧」の3つを指定
 feature_cols = ['temperature', 'humidity', 'pressure']
 
@@ -242,5 +247,47 @@ plt.xticks(rotation=45)
 plt.legend()
 plt.grid(True)
 
+plt.tight_layout()
+plt.show()
+
+# --- 7. 学習完了後：最後の10個の予測と実際のデータの比較 ---
+model.eval()
+with torch.no_grad():
+    # 最後の10個を予測するため、その直前の「INPUT_WINDOW（30日分）」のデータを取得
+    recent_data_window = df.tail(INPUT_WINDOW)[feature_cols].values
+    scaled_recent = scaler_x.transform(recent_data_window)
+    
+    # テンソルに変換してモデルに入力 (形状: [1, 30, 3])
+    input_tensor = torch.tensor(scaled_recent, dtype=torch.float32).unsqueeze(0).to(device)
+    
+    # 10日分の未来を直接予測
+    pred_scaled = model(input_tensor).cpu().numpy().squeeze(0)
+    
+    # 予測値を元のスケール（実際の気温の単位）に戻す
+    pred_temp = scaler_y.inverse_transform(pred_scaled.reshape(-1, 1)).flatten()
+
+# 実測値と日付の取得
+actual_temp = future_df['temperature'].values
+dates = future_df['date'].values
+
+# 表形式で比較を表示
+comparison_df = pd.DataFrame({
+    '日付': dates,
+    '実測値 (Actual)': actual_temp,
+    '予測値 (Predicted)': pred_temp
+})
+print("--- 最後の10日間の予測結果と実際のデータの比較 ---")
+print(comparison_df.to_string(index=False))
+
+# グラフによる比較の可視化
+plt.figure(figsize=(10, 5))
+plt.plot(dates, actual_temp, marker='o', label='Actual Temperature', color='blue')
+plt.plot(dates, pred_temp, marker='x', linestyle='--', label='Predicted Temperature', color='orange')
+plt.xticks(rotation=45)
+plt.xlabel('Date')
+plt.ylabel('Temperature (°C)')
+plt.title('Comparison of Actual vs Predicted Temperature (Last 10 Days)')
+plt.legend()
+plt.grid(True)
 plt.tight_layout()
 plt.show()
